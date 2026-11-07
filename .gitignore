@@ -218,3 +218,10 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+*.pt
+*.pth
+*.onnx
+*.ckpt
+*.safetensors
+.env
+data/
