@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Signature Verification</title>
+<style>
+  body { font-family: Arial, sans-serif; background: #f4f6f8; margin: 0; padding: 24px; }
+  .card { max-width: 640px; margin: 0 auto; background: #fff; padding: 24px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.1); }
+  h1 { margin-top: 0; font-size: 22px; }
+  .row { display: flex; gap: 16px; margin: 16px 0; }
+  .col { flex: 1; }
+  .col label { display: block; font-weight: bold; margin-bottom: 6px; }
+  .preview { width: 100%; height: 140px; object-fit: contain; border: 1px dashed #bbb; margin-top: 8px; background: #fafafa; }
+  button { background: #1a73e8; color: #fff; border: 0; padding: 10px 20px; border-radius: 6px; font-size: 16px; cursor: pointer; }
+  button:disabled { background: #9bbcf0; cursor: not-allowed; }
+  #status { margin-top: 16px; color: #555; }
+  #result { margin-top: 16px; padding: 16px; border-radius: 8px; display: none; }
+  .match { background: #e6f4ea; border: 1px solid #34a853; }
+  .nomatch { background: #fce8e6; border: 1px solid #ea4335; }
+  .score { font-size: 32px; font-weight: bold; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>Signature Verification</h1>
+  <div class="row">
+    <div class="col">
+      <label>Reference signature</label>
+      <input type="file" id="file1" accept="image/*">
+      <img id="prev1" class="preview" alt="">
+    </div>
+    <div class="col">
+      <label>Signature to verify</label>
+      <input type="file" id="file2" accept="image/*">
+      <img id="prev2" class="preview" alt="">
+    </div>
+  </div>
+  <button id="btn">Verify</button>
+  <div id="status"></div>
+  <div id="result"></div>
+</div>
+
+<script>
+// Change this to the backend address (ask Aqsa)
+const API_URL = "http://localhost:8000";
+// Score at or above this counts as a match (will be tuned later)
+const THRESHOLD = 70;
+
+const $ = id => document.getElementById(id);
+
+function showPreview(input, img) {
+  input.addEventListener("change", () => {
+    const f = input.files[0];
+    img.src = f ? URL.createObjectURL(f) : "";
+  });
+}
+showPreview($("file1"), $("prev1"));
+showPreview($("file2"), $("prev2"));
+
+function setStatus(msg) { $("status").textContent = msg; }
+
+async function pollResult(jobId) {
+  for (let i = 0; i < 60; i++) {
+    const s = await fetch(`${API_URL}/status/${jobId}`).then(r => r.json());
+    const state = s.status || s.state;
+    setStatus("Status: " + state);
+    if (state === "completed") {
+      return fetch(`${API_URL}/result/${jobId}`).then(r => r.json());
+    }
+    if (state === "failed") throw new Error("Job failed");
+    await new Promise(r => setTimeout(r, 2000));
+  }
+  throw new Error("Timed out waiting for result");
+}
+
+function showResult(data) {
+  const score = Number(data.score ?? data.similarity_score ?? 0);
+  const isMatch = score >= THRESHOLD;
+  const box = $("result");
+  box.className = isMatch ? "match" : "nomatch";
+  box.style.display = "block";
+  box.innerHTML =
+    `<div class="score">${score.toFixed(1)} / 100</div>` +
+    `<div>${isMatch ? "Signatures match" : "Signatures do not match"}</div>`;
+}
+
+$("btn").addEventListener("click", async () => {
+  const f1 = $("file1").files[0], f2 = $("file2").files[0];
+  if (!f1 || !f2) { setStatus("Please choose both images."); return; }
+  $("result").style.display = "none";
+  $("btn").disabled = true;
+  try {
+    setStatus("Uploading...");
+    const form = new FormData();
+    form.append("image1", f1);   // field names must match Aqsa's /verify
+    form.append("image2", f2);
+    const res = await fetch(`${API_URL}/verify`, { method: "POST", body: form });
+    if (!res.ok) throw new Error("Upload failed (" + res.status + ")");
+    const job = await res.json();
+    const result = await pollResult(job.job_id);
+    setStatus("Done");
+    showResult(result);
+  } catch (e) {
+    setStatus("Error: " + e.message);
+  } finally {
+    $("btn").disabled = false;
+  }
+});
+</script>
+</body>
+</html>
