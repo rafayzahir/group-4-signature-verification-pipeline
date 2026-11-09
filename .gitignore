@@ -225,3 +225,14 @@ __marimo__/
 *.safetensors
 .env
 data/
+
+# Python environments
+.venv/
+__pycache__/
+*.pyc
+
+# Uploaded images
+backend/storage/uploads/
+
+# Environment variables
+.env
