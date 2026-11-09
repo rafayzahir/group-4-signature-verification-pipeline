@@ -225,3 +225,6 @@ __marimo__/
 *.safetensors
 .env
 data/
+
+# Archive files
+*.rar
