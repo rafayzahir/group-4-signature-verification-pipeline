@@ -1,0 +1,12 @@
+venv/
+__pycache__/
+*.pyc
+.env
+.env.*
+!.env.example
+uploads/
+results/
+*.pth
+*.pt
+*.h5
+*.onnx
