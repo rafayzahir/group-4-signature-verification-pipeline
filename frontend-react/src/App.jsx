@@ -2,7 +2,7 @@ import { useState } from 'react'
 import './App.css'
 
 const API_URL = 'http://localhost:8000'
-const THRESHOLD = 70
+const THRESHOLD = 60
 
 function UploadBox({ title, hint, file, preview, onChange }) {
   return (
